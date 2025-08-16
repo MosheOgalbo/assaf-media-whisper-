@@ -1,0 +1,10 @@
+{
+    "loginPageTitle": "התחברות",
+    "username": "שם משתמש",
+    "requestOtpButton": "שלח סיסמה חד פעמית",
+    "enterOtp": "הזן סיסמה חד פעמית",
+    "otpPlaceholder": "סיסמה חד פעמית",
+    "otpLAbel": "הסיסמה אותה קיבלת במייל",
+    "otpLoginButton": "יאללה, אשרו אותי",
+    "otpError":  "את הפלי, הסיסמה לא נכונה. אבל בוא ננסה שוב פעם!"
+}
