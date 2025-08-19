@@ -1,8 +1,23 @@
 <?php
-// otp/verify.php
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: http://localhost:3000');
+
+// אפשר להריץ ישירות את הקובץ ע"י הגדרת הקבוע שהמחסומים בודקים:
+if (!defined('a328763fe27bba')) {
+    define('a328763fe27bba', true);
+}
+
+// טען את אתחול האפליקציה (שם גם מוגדרות כותרות CORS/טיים-זון)
+require_once __DIR__ . '/../app_init.php';
+
+// כעת אפשר לכלול DB ושאר תלויות
 require_once __DIR__ . '/../includes/db.php';
+
+// אם אתה כבר מגדיר ידנית כותרות CORS/JSON — השאר,
+// רק הימנע מכפילויות מול app_init.php במידת הצורך.
+header('Content-Type: application/json; charset=UTF-8');
+// otp/verify.php
+// header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: http://localhost:3000');
+// require_once __DIR__ . '/../includes/db.php';
 
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);

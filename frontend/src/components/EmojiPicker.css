@@ -1,0 +1,282 @@
+.emoji-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.emoji-picker {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow: hidden;
+  animation: slideUp 0.3s ease-out;
+}
+
+.emoji-picker-header {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e1e8ed;
+  gap: 15px;
+}
+
+.emoji-search {
+  flex: 1;
+  border: 2px solid #e1e8ed;
+  border-radius: 25px;
+  padding: 12px 20px;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.emoji-search:focus {
+  border-color: #667eea;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  color: #7f8c8d;
+}
+
+.close-button:hover {
+  background: #f1f3f4;
+  color: #2c3e50;
+}
+
+.emoji-categories {
+  display: flex;
+  border-bottom: 1px solid #e1e8ed;
+  overflow-x: auto;
+  padding: 0 20px;
+}
+
+.category-tab {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 15px 10px;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.category-tab:hover {
+  background: #f8f9fa;
+}
+
+.category-tab.active {
+  border-bottom-color: #667eea;
+  background: #f8f9fa;
+}
+
+.emoji-grid {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.emoji-section {
+  margin-bottom: 20px;
+}
+
+.category-title {
+  margin: 0 0 15px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #7f8c8d;
+  text-transform: capitalize;
+}
+
+.emoji-list {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 8px;
+}
+
+.emoji-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emoji-button:hover {
+  background: #f8f9fa;
+  transform: scale(1.1);
+}
+
+.emoji-button:active {
+  transform: scale(0.95);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .emoji-picker {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .emoji-picker-header {
+    padding: 15px;
+  }
+
+  .emoji-search {
+    padding: 10px 15px;
+    font-size: 14px;
+  }
+
+  .emoji-categories {
+    padding: 0 15px;
+  }
+
+  .category-tab {
+    font-size: 20px;
+    padding: 12px 8px;
+  }
+
+  .emoji-grid {
+    padding: 15px;
+  }
+
+  .emoji-list {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+  }
+
+  .emoji-button {
+    font-size: 20px;
+    padding: 6px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .emoji-picker {
+    background: #2d2d2d;
+  }
+
+  .emoji-picker-header {
+    border-bottom-color: #404040;
+  }
+
+  .emoji-search {
+    background: #3a3a3a;
+    border-color: #404040;
+    color: #e2e8f0;
+  }
+
+  .emoji-search:focus {
+    border-color: #60a5fa;
+  }
+
+  .close-button {
+    color: #a0aec0;
+  }
+
+  .close-button:hover {
+    background: #3a3a3a;
+    color: #e2e8f0;
+  }
+
+  .emoji-categories {
+    border-bottom-color: #404040;
+  }
+
+  .category-tab:hover,
+  .category-tab.active {
+    background: #3a3a3a;
+  }
+
+  .category-title {
+    color: #a0aec0;
+  }
+
+  .emoji-button:hover {
+    background: #3a3a3a;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .emoji-picker {
+    border: 3px solid currentColor;
+  }
+
+  .emoji-picker-header {
+    border-bottom-width: 3px;
+  }
+
+  .emoji-categories {
+    border-bottom-width: 3px;
+  }
+
+  .category-tab.active {
+    border-bottom-width: 4px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .emoji-picker-overlay,
+  .emoji-picker {
+    animation: none;
+  }
+
+  .emoji-button:hover {
+    transform: none;
+  }
+
+  .emoji-button:active {
+    transform: none;
+  }
+}
+
+/* Focus states for accessibility */
+.emoji-search:focus,
+.close-button:focus,
+.category-tab:focus,
+.emoji-button:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}

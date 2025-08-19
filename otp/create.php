@@ -1,6 +1,19 @@
 <?php
-// otp/create.php
-header('Content-Type: application/json');
+
+// אפשר להריץ ישירות את הקובץ ע"י הגדרת הקבוע שהמחסומים בודקים:
+if (!defined('a328763fe27bba')) {
+    define('a328763fe27bba', true);
+}
+
+// טען את אתחול האפליקציה (שם גם מוגדרות כותרות CORS/טיים-זון)
+require_once __DIR__ . '/../app_init.php';
+
+// כעת אפשר לכלול DB ושאר תלויות
+require_once __DIR__ . '/../includes/db.php';
+
+// אם אתה כבר מגדיר ידנית כותרות CORS/JSON — השאר,
+// רק הימנע מכפילויות מול app_init.php במידת הצורך.
+header('Content-Type: application/json; charset=UTF-8');
 
 // עבור dev/local: להוסיף כותרות CORS לפי צורך
 header('Access-Control-Allow-Origin: http://localhost:3000');
@@ -101,6 +114,30 @@ if (!$ok) {
 }
 
 // TODO: כאן לשלוח את ה־OTP דרך המייל/סמס (Brevo)
+
+// לאחר יצירת $otp (6 ספרות) — לא להחזיר אותו בתגובה לייצור
+// $brevoApiKey = BREVO_API_KEY;
+// $toEmail = $user['email']; // ודא שיש דוא"ל
+// $payload = [
+//   "sender" => ["name"=>"AssafMedia","email"=>"no-reply@yourdomain.com"],
+//   "to" => [["email"=> $toEmail]],
+//   "subject" => "Your OTP code",
+//   "htmlContent" => "<p>הקוד שלך: <strong>{$otp}</strong> (תפוגת 10 דקות)</p>"
+// ];
+// $ch = curl_init("https://api.brevo.com/v3/smtp/email");
+// curl_setopt($ch, CURLOPT_HTTPHEADER, [
+//   "accept: application/json",
+//   "api-key: {$brevoApiKey}",
+//   "content-type: application/json"
+// ]);
+// curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+// curl_setopt($ch, CURLOPT_POST, true);
+// curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+// $resp = curl_exec($ch);
+// $info = curl_getinfo($ch);
+// curl_close($ch);
+// בדוק $info['http_code'] === 201/200 וכו'
+
 //
 // דוגמה: בצד הייצור תקרא ל־Brevo API ותשלח את הקוד. לא להחזיר את ה־OTP בתשובה!
 // בשביל בדיקות מקומיות בלבד אפשר להחזיר את ה־OTP בתשובה (לא בטוח לייצור):

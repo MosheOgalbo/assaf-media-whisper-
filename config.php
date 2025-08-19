@@ -16,7 +16,7 @@
 
 	define("DELETE_ERRORS_LOG_FILE_ON_START",true);
 
-	define("INI_SET_DISPLAY_ERRORS",1);
+	define("INI_SET_DISPLAY_ERRORS",0);
 	define("INI_SET_LOG_ERRORS",1);
 	define("ERROR_REPORTING",E_ALL & ~E_NOTICE &~E_WARNING);
 	define("ERRORS_LOG_FILE_PATH",APP_ROOT_ABS_PATH."/errors.log");
@@ -35,12 +35,14 @@
 	]);
 
 	if(strpos($_SERVER['HTTP_HOST'], 'localhost') !== false){
+		define('MYSQL_DEFAULT_SERVERNAME', 'db');
 		define('MYSQL_DEFAULT_DB_HOST', 'db');
         define('MYSQL_DEFAULT_DB_NAME', 'assafdb');
         define('MYSQL_DEFAULT_USERNAME', 'assafuser');
         define('MYSQL_DEFAULT_DB_PASSWORD', 'assafpass');
 		define("ENV", "dev");
 	} else {
+		define('MYSQL_DEFAULT_SERVERNAME', 'db');
 		define('MYSQL_DEFAULT_DB_HOST', 'db');
         define('MYSQL_DEFAULT_DB_NAME', 'assafdb');
         define('MYSQL_DEFAULT_USERNAME', 'assafuser');

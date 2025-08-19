@@ -1,0 +1,244 @@
+.file-upload {
+  width: 100%;
+}
+
+.upload-area {
+  border: 3px dashed #e1e8ed;
+  border-radius: 20px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #f8f9fa;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-area:hover {
+  border-color: #667eea;
+  background: #f0f4ff;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.15);
+}
+
+.upload-area.drag-active {
+  border-color: #667eea;
+  background: #e3f2fd;
+  transform: scale(1.02);
+  box-shadow: 0 15px 35px rgba(102, 126, 234, 0.25);
+}
+
+.upload-area.drag-active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  animation: pulse 2s infinite;
+}
+
+.upload-content {
+  position: relative;
+  z-index: 1;
+}
+
+.upload-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+  animation: bounce 2s infinite;
+}
+
+.upload-area:hover .upload-icon {
+  animation: none;
+  transform: scale(1.1);
+}
+
+.upload-area h3 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.upload-area p {
+  margin: 5px 0;
+  color: #7f8c8d;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.upload-error {
+  background: #fee;
+  color: #c53030;
+  padding: 15px;
+  border-radius: 10px;
+  text-align: center;
+  margin-top: 15px;
+  border: 1px solid #fed7d7;
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .upload-area {
+    padding: 30px 15px;
+  }
+
+  .upload-icon {
+    font-size: 36px;
+  }
+
+  .upload-area h3 {
+    font-size: 18px;
+  }
+
+  .upload-area p {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .upload-area {
+    padding: 25px 12px;
+    border-radius: 15px;
+  }
+
+  .upload-icon {
+    font-size: 32px;
+    margin-bottom: 15px;
+  }
+
+  .upload-area h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .upload-area p {
+    font-size: 12px;
+    margin: 3px 0;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .upload-area {
+    background: #3a3a3a;
+    border-color: #404040;
+  }
+
+  .upload-area:hover {
+    background: #2d3748;
+    border-color: #60a5fa;
+  }
+
+  .upload-area.drag-active {
+    background: #1e3a5f;
+    border-color: #60a5fa;
+  }
+
+  .upload-area.drag-active::before {
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  }
+
+  .upload-area h3 {
+    color: #e2e8f0;
+  }
+
+  .upload-area p {
+    color: #a0aec0;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .upload-area {
+    border-width: 4px;
+  }
+
+  .upload-area:hover,
+  .upload-area.drag-active {
+    border-width: 5px;
+  }
+
+  .upload-error {
+    border-width: 3px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .upload-area {
+    transition: none;
+  }
+
+  .upload-area:hover,
+  .upload-area.drag-active {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .upload-area.drag-active::before {
+    animation: none;
+  }
+
+  .upload-icon {
+    animation: none;
+  }
+
+  .upload-area:hover .upload-icon {
+    transform: none;
+  }
+
+  .upload-error {
+    animation: none;
+  }
+
+  .file-upload * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus states for accessibility */
+.upload-area:focus {
+  outline: 3px solid #667eea;
+  outline-offset: 3px;
+}
+
+.upload-area:focus-visible {
+  outline: 3px solid #667eea;
+  outline-offset: 3px;
+}
