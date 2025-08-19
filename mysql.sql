@@ -1,22 +1,22 @@
 /*!40101 SET NAMES utf8mb4 */;
 
-CREATE TABLE `config` (
-  `id` int(11) NOT NULL,
-  `setting` varchar(255) NOT NULL,
-  `value` longtext NOT NULL,
-  `comments` mediumtext
+CREATE TABLE config (
+  id int(11) NOT NULL,
+  setting varchar(255) NOT NULL,
+  value longtext NOT NULL,
+  comments mediumtext
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `contacts` (
-  `row_id` int(11) NOT NULL,
-  `contact_id` int(11) DEFAULT NULL,
-  `belongs_to_username` varchar(255) DEFAULT NULL,
-  `contact_name` varchar(255) DEFAULT NULL,
-  `profile_picture_url` varchar(255) DEFAULT NULL,
-  `creation_datetime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE contacts (
+  row_id int(11) NOT NULL,
+  contact_id int(11) DEFAULT NULL,
+  belongs_to_username varchar(255) DEFAULT NULL,
+  contact_name varchar(255) DEFAULT NULL,
+  profile_picture_url varchar(255) DEFAULT NULL,
+  creation_datetime datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
-INSERT INTO `contacts` (`row_id`, `contact_id`, `belongs_to_username`, `contact_name`, `profile_picture_url`, `creation_datetime`) VALUES
+INSERT INTO contacts (row_id, contact_id, belongs_to_username, contact_name, profile_picture_url, creation_datetime) VALUES
 (1, 100, 'assaf', 'בן גולדמן', './profile_pics/ben100.jpg', '2025-07-28 19:46:20'),
 (2, 1, 'beng', 'אסף לוי', './profile_pics/assaf.jpg', '2025-07-28 19:46:20'),
 (3, 101, 'assaf', 'דניאל לומט', './profile_pics/daniell.jpg', '2025-07-28 19:46:20'),
@@ -38,18 +38,18 @@ INSERT INTO `contacts` (`row_id`, `contact_id`, `belongs_to_username`, `contact_
 (19, 113, 'assaf', 'אברהם קורן', './profile_pics/avrahamk.jpg', '2025-07-28 19:46:20'),
 (20, 114, 'assaf', 'נועם שוחט', './profile_pics/noams.jpg', '2025-07-28 19:46:20');
 
-CREATE TABLE `messages` (
-  `row_id` int(11) NOT NULL,
-  `belongs_to_username` varchar(255) DEFAULT NULL,
-  `msg_datetime` datetime DEFAULT CURRENT_TIMESTAMP,
-  `contact_id` varchar(255) DEFAULT NULL,
-  `is_from_me` tinyint(1) DEFAULT '1',
-  `msg_type` varchar(255) DEFAULT NULL,
-  `msg_body` longtext,
-  `creation_datetime` datetime DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE messages (
+  row_id int(11) NOT NULL,
+  belongs_to_username varchar(255) DEFAULT NULL,
+  msg_datetime datetime DEFAULT CURRENT_TIMESTAMP,
+  contact_id varchar(255) DEFAULT NULL,
+  is_from_me tinyint(1) DEFAULT '1',
+  msg_type varchar(255) DEFAULT NULL,
+  msg_body longtext,
+  creation_datetime datetime DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
-INSERT INTO `messages` (`row_id`, `belongs_to_username`, `msg_datetime`, `contact_id`, `is_from_me`, `msg_type`, `msg_body`, `creation_datetime`) VALUES
+INSERT INTO messages (row_id, belongs_to_username, msg_datetime, contact_id, is_from_me, msg_type, msg_body, creation_datetime) VALUES
 (1, 'beng', '2025-07-29 22:27:17', '1', 1, 'text', 'אהלן אסף!', '2025-07-29 22:27:17'),
 (2, 'assaf', '2025-07-29 22:27:17', '100', 0, 'text', 'אהלן אסף!', '2025-07-29 22:27:17'),
 (3, 'assaf', '2025-07-29 22:27:52', '100', 1, 'text', 'שלום שלום, מה נשמע?', '2025-07-29 22:27:52'),
@@ -626,6 +626,17 @@ CREATE TABLE `users` (
   `creation_datetime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
+ALTER TABLE users
+  ADD COLUMN otp_hash VARCHAR(255) NULL,
+  ADD COLUMN otp_expires_at DATETIME NULL,
+  ADD COLUMN otp_request_count INT DEFAULT 0,
+  ADD COLUMN otp_last_request_at DATETIME NULL,
+  ADD COLUMN otp_hourly_count INT DEFAULT 0,
+  ADD COLUMN otp_daily_count INT DEFAULT 0,
+  ADD COLUMN token VARCHAR(128) NULL,
+  ADD COLUMN token_expires_at DATETIME NULL;
+
+
 INSERT INTO `users` (`id`, `username`, `creation_datetime`) VALUES
 (1, 'assaf', '2025-07-28 17:38:00'),
 (100, 'beng', '2025-07-28 17:38:00'),
@@ -650,7 +661,8 @@ CREATE TABLE user_otps (
     otp VARCHAR(6) NOT NULL,
     expires_at DATETIME NOT NULL
     created_at DATETIME NOT NULL
-);
+)
+
 
 ALTER TABLE `config`
   ADD PRIMARY KEY (`id`),
@@ -684,3 +696,36 @@ ALTER TABLE `users`
 ALTER TABLE `users`
   ADD COLUMN token_valid_until DATETIME NULL
 COMMIT;
+
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  token VARCHAR(128) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME NOT NULL,
+  INDEX (token),
+  INDEX (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS otp_codes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  otp VARCHAR(32) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used TINYINT(1) DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  ip_address VARCHAR(45),
+  INDEX (user_id),
+  INDEX (otp)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_tokens (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  token VARCHAR(128) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NOT NULL,
+  user_agent VARCHAR(512) NULL,
+  ip VARCHAR(45) NULL,
+  INDEX(user_id)
+)

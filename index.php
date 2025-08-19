@@ -49,22 +49,22 @@
 			<div id="chat_window" class="right-container col-md-8">
 				<!--header -->
 				<div class="header row">
-				
+
 					<div class="row col-10">
 						<div class="show_chats_list col-2">
 							<i class="fa-solid fa-chevron-left"></i>
 						</div>
-						
+
 						<div class="contact_profile_img col-3">
 							<img class="dp" src="" alt="" />
 						</div>
-						
+
 						<div class="contact_name_container col-7">
 							<span class="contact_name"></span>
 							<span class="contact_id"></span>
 						</div>
 					</div>
-					
+
 					<div class="contact_more_options col-2">
 						<ul class="row">
 							<li class="col-6 show_more_option_menu">
@@ -72,7 +72,7 @@
 							</li>
 						</ul>
 					</div>
-					
+
 				</div>
 				<!--chat-container -->
 				<div id="msgs" class="chat-container"></div>
@@ -84,16 +84,18 @@
 						<i class="fa-solid fa-paper-plane"></i>
 					</button>
 				</form>
-			</div>		
+			</div>
 		</div>
 
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-		
+
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.js"></script>
 
+        <!-- <script src="./assets/js/auth.js?v=<?php echo time(); ?>"></script> -->
+
 		<script src="./assets/js/main.js?v=<?php echo time(); ?>"></script>
-		
+
 	</body>
 </html>

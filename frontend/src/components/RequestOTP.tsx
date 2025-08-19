@@ -6,64 +6,66 @@ type Props = {
     setUserName: (username: string) => void;
 };
 
-export const RequestOTP: FC<Props> = ({ setScreen, setUserName }) => {
+const BACKEND_BASE = process.env.REACT_APP_BACKEND_URL || "";
 
+export const RequestOTP: FC<Props> = ({ setScreen, setUserName }) => {
     const [error, setError] = React.useState<string | null>(null);
+    const [loading, setLoading] = React.useState(false);
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
+        setError(null);
         const form = event.target as HTMLFormElement;
-        if (form.name_check && form.name_check.value) {
-            console.warn("Failed Honeypot check");
+        if ((form as any).name_check && (form as any).name_check.value) {
+            setError("Bot detected");
             return;
         }
+        const username = (form.querySelector('#username') as HTMLInputElement).value.trim();
+        if (!username) {
+            setError(lang.usernameRequired || "Username is required");
+            return;
+        }
+
+        setLoading(true);
         try {
-            const response = await fetch("/otp/create.php", {
+            const res = await fetch(`${BACKEND_BASE}/otp/create.php`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    username: form.username.value,
-                }),
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username })
             });
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            const data = await response.json();
-            console.log("OTP request result:", data);
-            if (data.status === 200) {
-                setUserName(form.username.value);
+            const data = await res.json();
+            if (res.ok && data.status === 200) {
+                setUserName(username);
                 setScreen(2);
+
+                // If backend returned dev_otp (DEBUG mode), print to console (dev only)
+                if (data.dev_otp) {
+                    console.info("[DEV] OTP for", username, ":", data.dev_otp);
+                    // optional: notify user in UI (dev-only)
+                    // alert(`DEV OTP: ${data.dev_otp}`);
+                }
             } else {
-                setError(data.message);
+                setError(data.message || "Error requesting OTP");
             }
-        } catch (error) {
-            console.error("OTP request failed:", error);
-            alert("Something went wrong. Please try again later.");
+        } catch (err: any) {
+            setError(err.message || "Network error");
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
         <form onSubmit={handleSubmit} autoComplete="off">
-            <div style={{ display: "none" }}>
-                <input
-                    type="text"
-                    id="name_check"
-                    name="name_check"
-                    tabIndex={-1}
-                    autoComplete="off"
-                />
-            </div>
+            <input type="text" name="name_check" style={{display:'none'}} tabIndex={-1} autoComplete="off" />
             <div>
                 <label htmlFor="username">{lang.username}</label>
-                <input type="text" id="username" name="username" required />
+                <input type="text" id="username" name="username" required autoComplete="off" />
             </div>
             {error && <div style={{ color: "red" }}>{error}</div>}
-            <button type="submit">{lang.requestOtpButton}</button>
+            <button type="submit" disabled={loading}>{loading ? (lang.sending || 'Sending...') : (lang.requestOtpButton || 'Request OTP')}</button>
         </form>
     );
 };
-
 
 export default RequestOTP;

@@ -1,184 +1,110 @@
 <?php
+// otp/create.php
 header('Content-Type: application/json');
 
-define("a328763fe27bba", true);
-require_once __DIR__ . '/../config.php';
-require_once __DIR__ . '/../app_init.php';
+// עבור dev/local: להוסיף כותרות CORS לפי צורך
+header('Access-Control-Allow-Origin: http://localhost:3000');
+ header('Access-Control-Allow-Headers: Content-Type');
+ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit;
 
-class OtpRequester {
-    private $mysqli;
-    private $username;
-    private $apiKey;
+require_once __DIR__ . '/../includes/db.php';
 
-    public function __construct($mysqli, $username) {
-        $this->mysqli = $mysqli;
-        $this->username = trim($username);
-        $this->apiKey = getenv('BREVO_API_KEY') ?? null;
-    }
+$raw = file_get_contents('php://input');
+$input = json_decode($raw, true);
+$username = isset($input['username']) ? trim($input['username']) : '';
 
-    public function requestOtp() {
-        if (empty($this->username)) {
-            $this->sendJsonResponse(403, 'Username is required.');
-        }
+if (!$username) {
+    http_response_code(400);
+    echo json_encode(['success'=>false,'message'=>'missing username']);
+    exit;
+}
 
-        if (!function_exists('mysql_connect')) {
-            $this->sendJsonResponse(500, 'mysql_connect function not found.');
-        }
+$mysqli = db_get_conn();
+if (!$mysqli) {
+    http_response_code(500);
+    echo json_encode(['success'=>false,'message'=>'db connection error']);
+    exit;
+}
 
-        if (!$this->mysqli) {
-            $this->sendJsonResponse(500, 'Database connection failed.');
-        }
+// א. חפש משתמש לפי username
+$sql = "SELECT id, otp_last_request_at, otp_hourly_count, otp_daily_count FROM users WHERE username = ? LIMIT 1";
+if (!$stmt = $mysqli->prepare($sql)) {
+    error_log("prepare failed: ".$mysqli->error);
+    echo json_encode(['success'=>false,'message'=>'internal error']); exit;
+}
+$stmt->bind_param('s', $username);
+$stmt->execute();
+$res = $stmt->get_result();
+$user = $res->fetch_assoc();
+$stmt->close();
 
-        if (!$this->checkUserExists()) {
-            $this->sendJsonResponse(500, 'Username not found.');
-        }
+if (!$user) {
+    // אל נחשוף אם המשתמש קיים — נחזיר תשובה ניטרלית
+    echo json_encode(['success'=>true,'message'=>'אם המשתמש קיים, נשלח OTP.']);
+    exit;
+}
 
-        if (!$this->canRequestOtpNow()) {
-            $this->sendJsonResponse(500, 'Please wait 30 seconds before requesting a new OTP.');
-        }
+$user_id = (int)$user['id'];
+$now = new DateTime('now', new DateTimeZone('UTC'));
 
-        if ($this->getOtpCountLastHour() >= 4) {
-            $this->sendJsonResponse(500, 'Maximum OTP requests per hour exceeded.');
-        }
-
-        if ($this->getOtpCountToday() >= 10) {
-            $this->sendJsonResponse(500, 'Maximum OTP requests per day exceeded.');
-        }
-
-        $this->callBrevoApiOrFallback();
-    }
-
-        private function canRequestOtpNow(): bool {
-        $stmt = $this->mysqli->prepare("
-            SELECT created_at FROM user_otps 
-            WHERE username = ? 
-            ORDER BY created_at DESC 
-            LIMIT 1
-        ");
-        if ($stmt === false) {
-            $this->sendJsonResponse(500, 'Prepare failed: ' . $this->mysqli->error);
-        }
-        $lastCreatedAt = '0000-00-00 00:00:00';
-        $stmt->bind_param("s", $this->username);
-        $stmt->execute();
-        $stmt->bind_result($lastCreatedAt);
-        if ($stmt->fetch()) {
-            $stmt->close();
-            $lastRequestTimestamp = strtotime($lastCreatedAt);
-            return (time() - $lastRequestTimestamp) >= 30;
-        }
-        $stmt->close();
-        return true;
-    }
-
-       private function getOtpCountLastHour(): int {
-        $stmt = $this->mysqli->prepare("
-            SELECT COUNT(*) FROM user_otps 
-            WHERE username = ? 
-            AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-        ");
-        if ($stmt === false) {
-            $this->sendJsonResponse(500, 'Prepare failed: ' . $this->mysqli->error);
-        }
-        $count = 0;
-        $stmt->bind_param("s", $this->username);
-        $stmt->execute();
-        $stmt->bind_result($count);
-        $stmt->fetch();
-        $stmt->close();
-        return (int)$count;
-    }
-
-       private function getOtpCountToday(): int {
-        $stmt = $this->mysqli->prepare("
-            SELECT COUNT(*) FROM user_otps 
-            WHERE username = ? 
-            AND DATE(created_at) = CURDATE()
-        ");
-        if ($stmt === false) {
-            $this->sendJsonResponse(500, 'Prepare failed: ' . $this->mysqli->error);
-        }
-        $count = 0;
-        $stmt->bind_param("s", $this->username);
-        $stmt->execute();
-        $stmt->bind_result($count);
-        $stmt->fetch();
-        $stmt->close();
-        return (int)$count;
-    }
-
-    private function checkUserExists() {
-        $stmt = $this->mysqli->prepare("SELECT id FROM users WHERE username = ?");
-        if ($stmt === false) {
-            $this->sendJsonResponse(500, 'Prepare failed: ' . $this->mysqli->error);
-        }
-        $stmt->bind_param("s", $this->username);
-        $stmt->execute();
-        $stmt->store_result();
-
-        $exists = $stmt->num_rows > 0;
-        $stmt->close();
-
-        return $exists;
-    }
-
-    private function callBrevoApiOrFallback() {
-        $url = "https://api.brevo.com/v3/senders/{$this->username}/validate";
-
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "accept: application/json",
-            "api-key: {$this->apiKey}",
-            "content-type: application/json"
-        ]);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-            "type" => "email"
-        ]));
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode !== 201 || empty($response)) {
-            // For testing purposes only
-            $this->generateFallbackOtp();
-        } else {
-            $this->sendJsonResponse(200, 'OTP sent via Brevo API.');
-        }
-    }
-
-    private function generateFallbackOtp() {
-        $otp = random_int(100000, 999999);
-
-        $stmt = $this->mysqli->prepare("
-            INSERT INTO user_otps (username, otp, expires_at, created_at) 
-            VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), NOW())
-        ");
-
-        if ($stmt === false) {
-            $this->sendJsonResponse(500, 'Prepare failed: ' . $this->mysqli->error);
-        }
-
-        $stmt->bind_param("ss", $this->username, $otp);
-        $stmt->execute();
-        $stmt->close();
-
-        $this->sendJsonResponse(200, 'Fallback OTP generated (testing only)', ['otp' => $otp]);
-    }
-
-    private function sendJsonResponse(int $status, string $message, array $extra = []) {
-        echo json_encode(array_merge([
-            'status' => $status,
-            'message' => $message,
-        ], $extra));
+// בדיקת 30 שניות בין בקשות
+if (!empty($user['otp_last_request_at'])) {
+    $last = new DateTime($user['otp_last_request_at'], new DateTimeZone('UTC'));
+    if (($now->getTimestamp() - $last->getTimestamp()) < 30) {
+        http_response_code(429);
+        echo json_encode(['success'=>false,'message'=>'נא להמתין 30 שניות לפני בקשה נוספת']);
         exit;
     }
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
-$username = $input['username'] ?? '';
-$mysqli = mysql_connect();
-$otpRequester = new OtpRequester($mysqli, $username);
-$otpRequester->requestOtp();
+// אפס את ספירות שעה/יום אם עבר זמן מה
+$hourStart = (clone $now)->setTime((int)$now->format('H'), 0, 0);
+$dayStart  = (clone $now)->setTime(0,0,0);
+
+$hourly = (int)$user['otp_hourly_count'];
+$daily  = (int)$user['otp_daily_count'];
+
+if (empty($user['otp_last_request_at']) || new DateTime($user['otp_last_request_at']) < $hourStart) {
+    $hourly = 0;
+}
+if (empty($user['otp_last_request_at']) || new DateTime($user['otp_last_request_at']) < $dayStart) {
+    $daily = 0;
+}
+if ($hourly >= 4) { http_response_code(429); echo json_encode(['success'=>false,'message'=>'מגיעים למגבלת בקשות לשעה']);
+    exit; }
+if ($daily >= 10)  {
+    http_response_code(429); echo json_encode(['success'=>false,'message'=>'מגיעים למגבלת בקשות ליום']);
+    exit;
+}
+
+// יצירת OTP 6 ספרות
+$otp = random_int(100000, 999999);
+$otp_hash = password_hash((string)$otp, PASSWORD_DEFAULT);
+$expires_at = $now->modify('+10 minutes')->format('Y-m-d H:i:s');
+
+// עדכון DB
+$updateSql = "UPDATE users SET otp_hash = ?, otp_expires_at = ?, otp_last_request_at = ?, otp_request_count = otp_request_count + 1, otp_hourly_count = ?, otp_daily_count = ? WHERE id = ?";
+if (!$uStmt = $mysqli->prepare($updateSql)) {
+    error_log("update prepare failed: ".$mysqli->error);
+    echo json_encode(['success'=>false,'message'=>'internal error']);
+    exit;
+}
+$last_request = (new DateTime('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
+$hourly++; $daily++;
+$uStmt->bind_param('ssssii', $otp_hash, $expires_at, $last_request, $hourly, $daily, $user_id);
+$ok = $uStmt->execute();
+$uStmt->close();
+
+if (!$ok) {
+    error_log("failed update otp for user {$user_id}: ".$mysqli->error);
+    echo json_encode(['success'=>false,'message'=>'internal error']); exit;
+}
+
+// TODO: כאן לשלוח את ה־OTP דרך המייל/סמס (Brevo)
+//
+// דוגמה: בצד הייצור תקרא ל־Brevo API ותשלח את הקוד. לא להחזיר את ה־OTP בתשובה!
+// בשביל בדיקות מקומיות בלבד אפשר להחזיר את ה־OTP בתשובה (לא בטוח לייצור):
+// echo json_encode(['success'=>true,'message'=>'OTP נשלח', 'debug_otp' => $otp]);
+
+echo json_encode(['success'=>true,'message'=>'OTP נשלח במידה והמשתמש קיים.']);
+exit;

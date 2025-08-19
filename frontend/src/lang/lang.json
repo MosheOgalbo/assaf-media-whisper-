@@ -1,10 +1,17 @@
 {
-    "loginPageTitle": "התחברות",
-    "username": "שם משתמש",
-    "requestOtpButton": "שלח סיסמה חד פעמית",
-    "enterOtp": "הזן סיסמה חד פעמית",
-    "otpPlaceholder": "סיסמה חד פעמית",
-    "otpLAbel": "הסיסמה אותה קיבלת במייל",
-    "otpLoginButton": "יאללה, אשרו אותי",
-    "otpError":  "את הפלי, הסיסמה לא נכונה. אבל בוא ננסה שוב פעם!"
+  "loginPageTitle": "התחברות",
+  "username": "שם משתמש",
+  "requestOtpButton": "שלח סיסמה חד פעמית",
+  "enterOtp": "הזן סיסמה חד פעמית",
+  "otpPlaceholder": "סיסמה חד פעמית",
+
+  "otpLabel": "הסיסמה אותה קיבלת במייל",
+
+  "otpLoginButton": "יאללה, אשרו אותי",
+  "otpError": "את הפלי, הסיסמה לא נכונה. אבל בוא ננסה שוב פעם!",
+
+  "usernameRequired": "Username is required",
+  "sending": "Sending...",
+  "otpRequired": "OTP is required",
+  "verifying": "Verifying..."
 }
