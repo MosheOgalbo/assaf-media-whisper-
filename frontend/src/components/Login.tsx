@@ -7,7 +7,6 @@ interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   console.log('Login component rendered'); // בדיקה שהקומפוננטה נטענת
-  alert('Login component loaded!'); // alert שיופיע מיד כשהקומפוננטה נטענת
   const [step, setStep] = useState<'username' | 'otp'>('username');
 
   // debug לבדוק את השינוי ב-step
@@ -37,7 +36,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   }, [countdown]);
 
   const handleUsernameSubmit = async (e: React.FormEvent) => {
-    alert('Function called!'); // בדיקה ראשונה
     e.preventDefault();
 
     // Check honeypot
@@ -47,19 +45,15 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     }
 
     if (!username.trim()) {
-      alert('Username empty!');
       setError('אנא הכנס שם משתמש');
       return;
     }
 
-    alert('About to set loading...');
     setLoading(true);
     setError('');
-    alert('Loading set, starting request...');
 
     try {
       console.log('Starting OTP request...');
-      alert('Starting request...'); // בדיקה שהפונקציה בכלל נקראת
 
       // שלח בקשה כ-JSON לנתיב הנכון
       const response = await fetch('http://localhost:8080/otp/create.php', {
@@ -73,7 +67,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       });
 
       console.log('Response status:', response.status);
-      alert('Got response with status: ' + response.status);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -81,12 +74,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
       const data = await response.json();
       console.log('Server response:', data);
-      alert('Full response: ' + JSON.stringify(data, null, 2)); // מפורמט יותר
 
       // בדיקה מפורשת של success
       if (data && (data.success === true || data.otp_sent === true)) {
-        console.log('Success confirmed, switching to OTP step');
-        console.log('Current step before change:', step);
+        console.log('Success confirmed, switching to OTP step immediately');
 
         // בדוק אם יש debug OTP (למצב פיתוח)
         if (data.debug && data.debug.otp) {
@@ -95,11 +86,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           setSuccess('קוד OTP נשלח בהצלחה!');
         }
 
-        console.log('About to set step to otp...');
+        // מעבר מיידי לשלב ה-OTP
         setStep('otp');
-        console.log('Step set to otp');
-        setCountdown(30); // 30 second cooldown
-        setTimeout(() => setSuccess(''), 10000); // 10 שניות כדי שתספיק לראות את הקוד
+        setCountdown(1); // 30 second cooldown
+        setTimeout(() => setSuccess(''), 500); // נקה הודעה אחרי 5 שניות
       } else {
         console.log('Success not confirmed:', data);
         alert('Success NOT confirmed: ' + JSON.stringify(data));
@@ -140,7 +130,11 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       const data = await response.json();
 
       if (data.success) {
-        onLoginSuccess(data.token, username.trim());
+        // אימות מוצלח - הפנה לצ'אט
+       // onLoginSuccess(data.token, username.trim());
+
+        // חלופה - הפניה ישירה לצ'אט
+         window.location.href = 'http://localhost:8080/index.php';
       } else {
         setError(data.message || 'Invalid OTP');
       }
@@ -179,7 +173,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           setSuccess('קוד חדש נשלח!');
         }
         setCountdown(30);
-        setTimeout(() => setSuccess(''), 10000);
+        setTimeout(() => setSuccess(''), 1000);
       } else {
         setError(data.message || 'Failed to resend OTP');
       }
@@ -226,7 +220,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         <div className="login-header">
           <h1>ברוכים הבאים לאפליקציית הצ'אט</h1>
           <p>התחברות מאובטחת עם אימות OTP</p>
-          <button onClick={() => alert('Test button works!')}>בדיקה</button>
         </div>
 
         {step === 'username' ? (
@@ -259,7 +252,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               type="submit"
               className="btn-primary"
               disabled={loading}
-              onClick={() => alert('Button clicked!')} // בדיקה נוספת
             >
               {loading ? 'שולח...' : 'שלח סיסמה חד פעמית'}
             </button>
