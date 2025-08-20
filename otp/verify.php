@@ -11,18 +11,29 @@ require_once __DIR__ . '/../app_init.php';
 // כעת אפשר לכלול DB ושאר תלויות
 require_once __DIR__ . '/../includes/db.php';
 
-// אם אתה כבר מגדיר ידנית כותרות CORS/JSON — השאר,
-// רק הימנע מכפילויות מול app_init.php במידת הצורך.
+// הגדרת כותרות
 header('Content-Type: application/json; charset=UTF-8');
-// otp/verify.php
-// header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: http://localhost:3000');
-// require_once __DIR__ . '/../includes/db.php';
+header('Access-Control-Allow-Origin: http://localhost:3001');
+header('Access-Control-Allow-Headers: Content-Type');
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit;
 
+// קריאת הנתונים מהבקשה
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
+
+// בדיקה אם הנתונים הגיעו כראוי
+if (!$input) {
+    error_log("Failed to decode JSON: " . $raw);
+    http_response_code(400);
+    echo json_encode(['success'=>false,'message'=>'invalid json data']);
+    exit;
+}
+
 $username = isset($input['username']) ? trim($input['username']) : '';
 $otp = isset($input['otp']) ? trim($input['otp']) : '';
+
+// לוג לבדיקה
+error_log("Received verify request - Username: $username, OTP: $otp");
 
 if (!$username || !$otp) {
     http_response_code(400);
@@ -31,11 +42,19 @@ if (!$username || !$otp) {
 }
 
 $mysqli = db_get_conn();
-if (!$mysqli) { http_response_code(500); echo json_encode(['success'=>false,'message'=>'db error']); exit; }
+if (!$mysqli) {
+    http_response_code(500);
+    echo json_encode(['success'=>false,'message'=>'db error']);
+    exit;
+}
 
 // הבאת המשתמש
-$sql = "SELECT id, otp_hash, otp_expires_at FROM users WHERE username = ? LIMIT 1";
-if (!$stmt = $mysqli->prepare($sql)) { error_log("prepare failed: ".$mysqli->error); echo json_encode(['success'=>false,'message'=>'internal']); exit; }
+$sql = "SELECT id, username, otp_hash, otp_expires_at FROM users WHERE username = ? LIMIT 1";
+if (!$stmt = $mysqli->prepare($sql)) {
+    error_log("prepare failed: ".$mysqli->error);
+    echo json_encode(['success'=>false,'message'=>'internal']);
+    exit;
+}
 $stmt->bind_param('s', $username);
 $stmt->execute();
 $res = $stmt->get_result();
@@ -43,20 +62,33 @@ $user = $res->fetch_assoc();
 $stmt->close();
 
 if (!$user) {
+    error_log("User not found: $username");
     http_response_code(401);
     echo json_encode(['success'=>false,'message'=>'invalid credentials']);
     exit;
 }
 
 // בדיקת תוקף
-if (empty($user['otp_hash']) || empty($user['otp_expires_at']) || new DateTime($user['otp_expires_at']) < new DateTime()) {
+if (empty($user['otp_hash']) || empty($user['otp_expires_at'])) {
+    error_log("OTP not set for user: $username");
     http_response_code(400);
-    echo json_encode(['success'=>false,'message'=>'OTP expired or not set']);
+    echo json_encode(['success'=>false,'message'=>'OTP not set']);
+    exit;
+}
+
+$expires_at = new DateTime($user['otp_expires_at'], new DateTimeZone('UTC'));
+$now = new DateTime('now', new DateTimeZone('UTC'));
+
+if ($expires_at < $now) {
+    error_log("OTP expired for user: $username");
+    http_response_code(400);
+    echo json_encode(['success'=>false,'message'=>'OTP expired']);
     exit;
 }
 
 // אימות ה־OTP
 if (!password_verify($otp, $user['otp_hash'])) {
+    error_log("Invalid OTP for user: $username");
     http_response_code(401);
     echo json_encode(['success'=>false,'message'=>'invalid otp']);
     exit;
@@ -70,7 +102,8 @@ $token_expires = (new DateTime('now', new DateTimeZone('UTC')))->modify('+7 days
 $updateSql = "UPDATE users SET token = ?, token_expires_at = ?, otp_hash = NULL, otp_expires_at = NULL WHERE id = ?";
 if (!$uStmt = $mysqli->prepare($updateSql)) {
     error_log("token update prepare failed: ".$mysqli->error);
-    echo json_encode(['success'=>false,'message'=>'internal error']); exit;
+    echo json_encode(['success'=>false,'message'=>'internal error']);
+    exit;
 }
 $uStmt->bind_param('ssi', $token, $token_expires, $user['id']);
 $ok = $uStmt->execute();
@@ -78,9 +111,18 @@ $uStmt->close();
 
 if (!$ok) {
     error_log("failed store token for user {$user['id']}: ".$mysqli->error);
-    echo json_encode(['success'=>false,'message'=>'internal error']); exit;
+    echo json_encode(['success'=>false,'message'=>'internal error']);
+    exit;
 }
 
+// לוג הצלחה
+error_log("Successfully verified OTP for user: $username");
+
 // החזר טוקן ללקוח
-echo json_encode(['success'=>true,'token'=>$token,'expires_at'=>$token_expires]);
+echo json_encode([
+    'success' => true,
+    'token' => $token,
+    'username' => $username,
+    'expires_at' => $token_expires
+]);
 exit;

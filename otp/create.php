@@ -11,20 +11,28 @@ require_once __DIR__ . '/../app_init.php';
 // כעת אפשר לכלול DB ושאר תלויות
 require_once __DIR__ . '/../includes/db.php';
 
-// אם אתה כבר מגדיר ידנית כותרות CORS/JSON — השאר,
-// רק הימנע מכפילויות מול app_init.php במידת הצורך.
+// הגדרת כותרות
 header('Content-Type: application/json; charset=UTF-8');
-
-// עבור dev/local: להוסיף כותרות CORS לפי צורך
 header('Access-Control-Allow-Origin: http://localhost:3000');
- header('Access-Control-Allow-Headers: Content-Type');
- if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit;
+header('Access-Control-Allow-Headers: Content-Type');
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit;
 
-require_once __DIR__ . '/../includes/db.php';
-
+// קריאת הנתונים מהבקשה
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
+
+// בדיקה אם הנתונים הגיעו כראוי
+if (!$input) {
+    error_log("Failed to decode JSON: " . $raw);
+    http_response_code(400);
+    echo json_encode(['success'=>false,'message'=>'invalid json data']);
+    exit;
+}
+
 $username = isset($input['username']) ? trim($input['username']) : '';
+
+// לוג לבדיקה
+error_log("Received create OTP request for username: $username");
 
 if (!$username) {
     http_response_code(400);
@@ -34,16 +42,18 @@ if (!$username) {
 
 $mysqli = db_get_conn();
 if (!$mysqli) {
+    error_log("Database connection failed");
     http_response_code(500);
     echo json_encode(['success'=>false,'message'=>'db connection error']);
     exit;
 }
 
 // א. חפש משתמש לפי username
-$sql = "SELECT id, otp_last_request_at, otp_hourly_count, otp_daily_count FROM users WHERE username = ? LIMIT 1";
+$sql = "SELECT id, username, otp_last_request_at, otp_hourly_count, otp_daily_count FROM users WHERE username = ? LIMIT 1";
 if (!$stmt = $mysqli->prepare($sql)) {
     error_log("prepare failed: ".$mysqli->error);
-    echo json_encode(['success'=>false,'message'=>'internal error']); exit;
+    echo json_encode(['success'=>false,'message'=>'internal error']);
+    exit;
 }
 $stmt->bind_param('s', $username);
 $stmt->execute();
@@ -52,6 +62,7 @@ $user = $res->fetch_assoc();
 $stmt->close();
 
 if (!$user) {
+    error_log("User not found: $username");
     // אל נחשוף אם המשתמש קיים — נחזיר תשובה ניטרלית
     echo json_encode(['success'=>true,'message'=>'אם המשתמש קיים, נשלח OTP.']);
     exit;
@@ -60,12 +71,14 @@ if (!$user) {
 $user_id = (int)$user['id'];
 $now = new DateTime('now', new DateTimeZone('UTC'));
 
-// בדיקת 30 שניות בין בקשות
+// בדיקת 5 שניות בין בקשות (למטרות פיתוח)
 if (!empty($user['otp_last_request_at'])) {
     $last = new DateTime($user['otp_last_request_at'], new DateTimeZone('UTC'));
-    if (($now->getTimestamp() - $last->getTimestamp()) < 30) {
+    $timeDiff = $now->getTimestamp() - $last->getTimestamp();
+    if ($timeDiff < 5) { // 5 שניות במקום 30
+        error_log("Rate limit hit for user: $username (waited only $timeDiff seconds)");
         http_response_code(429);
-        echo json_encode(['success'=>false,'message'=>'נא להמתין 30 שניות לפני בקשה נוספת']);
+        echo json_encode(['success'=>false,'message'=>'נא להמתין 5 שניות לפני בקשה נוספת']);
         exit;
     }
 }
@@ -83,10 +96,17 @@ if (empty($user['otp_last_request_at']) || new DateTime($user['otp_last_request_
 if (empty($user['otp_last_request_at']) || new DateTime($user['otp_last_request_at']) < $dayStart) {
     $daily = 0;
 }
-if ($hourly >= 4) { http_response_code(429); echo json_encode(['success'=>false,'message'=>'מגיעים למגבלת בקשות לשעה']);
-    exit; }
+
+if ($hourly >= 4) {
+    error_log("Hourly rate limit hit for user: $username");
+    http_response_code(429);
+    echo json_encode(['success'=>false,'message'=>'מגיעים למגבלת בקשות לשעה']);
+    exit;
+}
 if ($daily >= 10)  {
-    http_response_code(429); echo json_encode(['success'=>false,'message'=>'מגיעים למגבלת בקשות ליום']);
+    error_log("Daily rate limit hit for user: $username");
+    http_response_code(429);
+    echo json_encode(['success'=>false,'message'=>'מגיעים למגבלת בקשות ליום']);
     exit;
 }
 
@@ -94,6 +114,9 @@ if ($daily >= 10)  {
 $otp = random_int(100000, 999999);
 $otp_hash = password_hash((string)$otp, PASSWORD_DEFAULT);
 $expires_at = $now->modify('+10 minutes')->format('Y-m-d H:i:s');
+
+// לוג יצירת ה-OTP
+error_log("Generated OTP for user $username: $otp (expires at $expires_at)");
 
 // עדכון DB
 $updateSql = "UPDATE users SET otp_hash = ?, otp_expires_at = ?, otp_last_request_at = ?, otp_request_count = otp_request_count + 1, otp_hourly_count = ?, otp_daily_count = ? WHERE id = ?";
@@ -110,38 +133,27 @@ $uStmt->close();
 
 if (!$ok) {
     error_log("failed update otp for user {$user_id}: ".$mysqli->error);
-    echo json_encode(['success'=>false,'message'=>'internal error']); exit;
+    echo json_encode(['success'=>false,'message'=>'internal error']);
+    exit;
 }
 
 // TODO: כאן לשלוח את ה־OTP דרך המייל/סמס (Brevo)
 
-// לאחר יצירת $otp (6 ספרות) — לא להחזיר אותו בתגובה לייצור
-// $brevoApiKey = BREVO_API_KEY;
-// $toEmail = $user['email']; // ודא שיש דוא"ל
-// $payload = [
-//   "sender" => ["name"=>"AssafMedia","email"=>"no-reply@yourdomain.com"],
-//   "to" => [["email"=> $toEmail]],
-//   "subject" => "Your OTP code",
-//   "htmlContent" => "<p>הקוד שלך: <strong>{$otp}</strong> (תפוגת 10 דקות)</p>"
-// ];
-// $ch = curl_init("https://api.brevo.com/v3/smtp/email");
-// curl_setopt($ch, CURLOPT_HTTPHEADER, [
-//   "accept: application/json",
-//   "api-key: {$brevoApiKey}",
-//   "content-type: application/json"
-// ]);
-// curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-// curl_setopt($ch, CURLOPT_POST, true);
-// curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-// $resp = curl_exec($ch);
-// $info = curl_getinfo($ch);
-// curl_close($ch);
-// בדוק $info['http_code'] === 201/200 וכו'
-
-//
 // דוגמה: בצד הייצור תקרא ל־Brevo API ותשלח את הקוד. לא להחזיר את ה־OTP בתשובה!
 // בשביל בדיקות מקומיות בלבד אפשר להחזיר את ה־OTP בתשובה (לא בטוח לייצור):
-// echo json_encode(['success'=>true,'message'=>'OTP נשלח', 'debug_otp' => $otp]);
 
-echo json_encode(['success'=>true,'message'=>'OTP נשלח במידה והמשתמש קיים.']);
+// לוג הצלחה
+error_log("Successfully created OTP for user: $username");
+
+// למטרות פיתוח - החזר את ה-OTP בלוג (לא בייצור!)
+echo json_encode([
+    'success' => true,
+    'message' => 'קוד OTP נשלח בהצלחה!', // הודעה ברורה
+    'otp_sent' => true, // דגל ברור שה-OTP נשלח
+    'debug' => [
+        'otp' => $otp, // רק לפיתוח - להסיר בייצור!
+        'username' => $username,
+        'expires_at' => $expires_at
+    ]
+]);
 exit;

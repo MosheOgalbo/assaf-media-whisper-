@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './Login.css';
 
 interface LoginProps {
@@ -6,7 +6,14 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+  console.log('Login component rendered'); // בדיקה שהקומפוננטה נטענת
+  alert('Login component loaded!'); // alert שיופיע מיד כשהקומפוננטה נטענת
   const [step, setStep] = useState<'username' | 'otp'>('username');
+
+  // debug לבדוק את השינוי ב-step
+  useEffect(() => {
+    console.log('Step changed to:', step);
+  }, [step]);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -19,7 +26,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [honeypot, setHoneypot] = useState('');
 
   // OTP input refs for better UX
-  const otpRefs = Array.from({ length: 6 }, () => React.useRef<HTMLInputElement>(null));
+  const otpRefs = Array.from({ length: 6 }, () => useRef<HTMLInputElement>(null));
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -30,6 +37,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   }, [countdown]);
 
   const handleUsernameSubmit = async (e: React.FormEvent) => {
+    alert('Function called!'); // בדיקה ראשונה
     e.preventDefault();
 
     // Check honeypot
@@ -39,38 +47,67 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     }
 
     if (!username.trim()) {
+      alert('Username empty!');
       setError('אנא הכנס שם משתמש');
       return;
     }
 
+    alert('About to set loading...');
     setLoading(true);
     setError('');
+    alert('Loading set, starting request...');
 
     try {
-      const response = await fetch('/otp_demo.php', {
+      console.log('Starting OTP request...');
+      alert('Starting request...'); // בדיקה שהפונקציה בכלל נקראת
+
+      // שלח בקשה כ-JSON לנתיב הנכון
+      const response = await fetch('http://localhost:8080/otp/create.php', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          action: 'request_otp',
+        body: JSON.stringify({
           username: username.trim(),
-
         }),
       });
 
-      const data = await response.json();
+      console.log('Response status:', response.status);
+      alert('Got response with status: ' + response.status);
 
-              if (data.success) {
-          setSuccess('קוד OTP נשלח בהצלחה! קוד: ' + (data.otp || ''));
-          setStep('otp');
-          setCountdown(30); // 30 second cooldown
-          setTimeout(() => setSuccess(''), 5000);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Server response:', data);
+      alert('Full response: ' + JSON.stringify(data, null, 2)); // מפורמט יותר
+
+      // בדיקה מפורשת של success
+      if (data && (data.success === true || data.otp_sent === true)) {
+        console.log('Success confirmed, switching to OTP step');
+        console.log('Current step before change:', step);
+
+        // בדוק אם יש debug OTP (למצב פיתוח)
+        if (data.debug && data.debug.otp) {
+          setSuccess(`קוד OTP: ${data.debug.otp}`);
         } else {
-          setError(data.message || 'שליחת OTP נכשלה');
+          setSuccess('קוד OTP נשלח בהצלחה!');
         }
+
+        console.log('About to set step to otp...');
+        setStep('otp');
+        console.log('Step set to otp');
+        setCountdown(30); // 30 second cooldown
+        setTimeout(() => setSuccess(''), 10000); // 10 שניות כדי שתספיק לראות את הקוד
+      } else {
+        console.log('Success not confirmed:', data);
+        alert('Success NOT confirmed: ' + JSON.stringify(data));
+        setError(data?.message || 'שליחת OTP נכשלה');
+      }
     } catch (err) {
-      setError('Network error. Please try again.');
+      console.error('Network error:', err);
+      setError('שגיאת רשת. אנא נסה שוב.');
     } finally {
       setLoading(false);
     }
@@ -88,17 +125,17 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setError('');
 
     try {
-              const response = await fetch('/otp_demo.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            action: 'verify_otp',
-            username: username.trim(),
-            otp: otp.trim(),
-          }),
-        });
+      // שלח בקשה כ-JSON לנתיב האימות
+      const response = await fetch('http://localhost:8080/otp/verify.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: username.trim(),
+          otp: otp.trim(),
+        }),
+      });
 
       const data = await response.json();
 
@@ -108,7 +145,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         setError(data.message || 'Invalid OTP');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      console.error('Network error:', err);
+      setError('שגיאת רשת. אנא נסה שוב.');
     } finally {
       setLoading(false);
     }
@@ -121,29 +159,33 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setError('');
 
     try {
-      const response = await fetch('/otp_demo.php', {
+      const response = await fetch('http://localhost:8080/otp/create.php', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          action: 'request_otp',
+        body: JSON.stringify({
           username: username.trim(),
-
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setSuccess('New OTP sent!');
+        // בדוק אם יש debug OTP (למצב פיתוח)
+        if (data.debug && data.debug.otp) {
+          setSuccess(`קוד חדש: ${data.debug.otp}`);
+        } else {
+          setSuccess('קוד חדש נשלח!');
+        }
         setCountdown(30);
-        setTimeout(() => setSuccess(''), 3000);
+        setTimeout(() => setSuccess(''), 10000);
       } else {
         setError(data.message || 'Failed to resend OTP');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      console.error('Network error:', err);
+      setError('שגיאת רשת. אנא נסה שוב.');
     } finally {
       setLoading(false);
     }
@@ -184,6 +226,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         <div className="login-header">
           <h1>ברוכים הבאים לאפליקציית הצ'אט</h1>
           <p>התחברות מאובטחת עם אימות OTP</p>
+          <button onClick={() => alert('Test button works!')}>בדיקה</button>
         </div>
 
         {step === 'username' ? (
@@ -201,8 +244,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               />
             </div>
 
-
-
             {/* Honeypot field - hidden from users */}
             <div className="honeypot-field" style={{ display: 'none' }}>
               <input
@@ -218,6 +259,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               type="submit"
               className="btn-primary"
               disabled={loading}
+              onClick={() => alert('Button clicked!')} // בדיקה נוספת
             >
               {loading ? 'שולח...' : 'שלח סיסמה חד פעמית'}
             </button>
